@@ -15,7 +15,7 @@ This .NET asssembly contains the core layout functionality. Use this library if 
 **The Drawing module (Microsoft.MSAGL.Drawing.dll)** - [NuGet package](https://www.nuget.org/packages/Microsoft.Msagl.Drawing/)
 The Definitions of different drawing attributes like colors, line styles, etc. It also contains definitions of a node class, an edge class, and a graph class. By using these classes a user can create a graph object and use it later for layout, and rendering.
 
-**A Viewer control** (Microsoft.MSAGL.GraphViewerGDIGraph.dll)** - [NuGet package](https://www.nuget.org/packages/Microsoft.Msagl.GraphViewerGDI/)
+**A Viewer control (Microsoft.MSAGL.GraphViewerGDIGraph.dll)** - [NuGet package](https://www.nuget.org/packages/Microsoft.Msagl.GraphViewerGDI/)
 The viewer control lets you visualize graphs and has and some other rendering functionality. Key features: (1) Pan and Zoom (2) Navigate Forward and Backward (3) tooltips and highlighting on graph entities (4) Search for and focus on graph entities.
 
 # Code Samples
@@ -65,7 +65,7 @@ samples can be found here…](https://www.microsoft.com/en-us/research/project/m
 
 # GraphMaps
 
-GraphMaps lets you view very large like oneline maps - as you zoom in more detail is revealed. Watch a [video](https://1drv.ms/v/s!AhsA76T-agdHgUBKXzpdOHeVNmq9) that shows how GraphMaps works.
+GraphMaps lets you view very large graphs like oneline maps - as you zoom in more detail is revealed. Watch a [video](https://youtu.be/qCUP20dQqBo) that shows how GraphMaps works, and here is the [video](http://i11www.iti.kit.edu/~rprutkin/composers.wmv) of the previous version.
 
 ## Using GraphMaps
 * open Lg.sln and build the solution,
@@ -85,6 +85,15 @@ The ideas, design, and the mathematics of GraphMaps are described in [this paper
 ![](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/msagl-195f1b23116b4f049b6e5dc815d96c89.png)
 ![](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/msagl-c34826a5e3af4cecbd8165fabc947b36.jpg)
 ![](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/msagl-44a7b11774a54cab92a3f75a9501601b.png)
+
+# MSAGL in JavaScript
+
+WebMSAGL is a version of MSAGL that was transcompiled to JavaScript with [SharpKit] (https://github.com/SharpKit/SharpKit/), plus a [TypeScript] (https://www.typescriptlang.org/) wrapper and rendering/interaction layer that provides a friendly TypeScript API. You can create a graph either programmatically or from a JSON object, have MSAGL create a layout for it, and then render it to an HTML Canvas or to an SVG block. All layout operations are run in a web worker, ensuring that your application remains responsive while computation is taking place. Limited interactivity is also supported.
+
+## Using WebMSAGL
+* open WebMsagl.sln and build the solution,
+* set index.html from any of the sample folders as the starting page,
+* run WebMsagl.
 
 
 # Code of Conduct

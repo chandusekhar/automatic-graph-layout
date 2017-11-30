@@ -6,8 +6,10 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+#if !NETCORE
 using System.Windows.Forms;
 using System.Windows.Media;
+#endif
 using Microsoft.Msagl.Core;
 using Microsoft.Msagl.Core.DataStructures;
 using Microsoft.Msagl.Core.Geometry;
@@ -29,14 +31,18 @@ using Microsoft.Msagl.Miscellaneous.ConstrainedSkeleton;
 using Microsoft.Msagl.Miscellaneous.RegularGrid;
 using Microsoft.Msagl.Miscellaneous.Routing;
 using Microsoft.Msagl.Routing.Visibility;
+#if !NETCORE
 using Brushes = System.Windows.Media.Brushes;
+#endif
 using Edge = Microsoft.Msagl.Core.Layout.Edge;
 using LineSegment = Microsoft.Msagl.Core.Geometry.Curves.LineSegment;
 using Point = Microsoft.Msagl.Core.Geometry.Point;
 using Rectangle = Microsoft.Msagl.Core.Geometry.Rectangle;
 using Size = Microsoft.Msagl.Core.DataStructures.Size;
 using SymmetricSegment = Microsoft.Msagl.Core.DataStructures.SymmetricTuple<Microsoft.Msagl.Core.Geometry.Point>;
+#if !NETCORE
 using Timer = Microsoft.Msagl.DebugHelpers.Timer;
+#endif
 
 namespace Microsoft.Msagl.Layout.LargeGraphLayout
 {
@@ -434,9 +440,8 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
 
         }
              
-        public void RunForMsaglFiles()
+        public void RunForMsaglFiles(string tileDirectory)
         {
-           
             //ask user
             Console.WriteLine("Running in Default Settings - Enable UserPrompt in LgInteractor if needed.");
             _lgLayoutSettings.hugeGraph = true; //PromptUserforGraphSize();
@@ -468,7 +473,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
 
             //*/
             Dictionary<Node, int> nodeToId;
-            var g = TryCompetitionMeshApproach(out nodeToId);
+            var g = TryCompetitionMeshApproach(out nodeToId, tileDirectory);
 
             var stopwatch = new Stopwatch();
             Tiling[] graphs = calculateGraphsForEachZoomLevel(g, nodeToId, _lgLayoutSettings.hugeGraph);
@@ -934,14 +939,11 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 }
             }
         }
-        private Tiling TryCompetitionMeshApproach(out Dictionary<Node, int> nodeToId)
+        private Tiling TryCompetitionMeshApproach(out Dictionary<Node, int> nodeToId, string tileDirectory)
         {
-
-
-
-            Boolean loaded = LoadNodeLocationsFromFile();
+            Boolean loaded = LoadNodeLocationsFromFile(tileDirectory);
             _mainGeometryGraph.UpdateBoundingBox();
-            _lgLayoutSettings._geometryGraph = _mainGeometryGraph;
+            _lgLayoutSettings.lgGeometryGraph = _mainGeometryGraph;
 
             Console.WriteLine("Nodes = " + _mainGeometryGraph.Nodes.Count + "Edges = " + _mainGeometryGraph.Edges.Count);
 
@@ -968,7 +970,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             
 
             int maxY;
-            var maxX = CreateNodePositions(g, nodeToId, idToNode, out maxY);
+            var maxX = CreateNodePositions(g, nodeToId, idToNode, out maxY, tileDirectory);
 
             if (_lgLayoutSettings.flow)
                 ComputeZoomLevelviaFlow(nodeToId, maxX, maxY);
@@ -1165,9 +1167,8 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
         }
 
 
-        public bool loadBipartiteData()
+        public bool loadBipartiteData(string line)
         {
-            String line = _mainGeometryGraph.directory;
             if (line == null) return false;
             line = line.Replace(".tiles", "");
             try
@@ -1196,12 +1197,11 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 return false;
             }
         }
-        public bool LoadNodeLocationsFromFile()
+        public bool LoadNodeLocationsFromFile(string tileDirectory)
         {
             //OpenFileDialog openFileDialog1 = new OpenFileDialog();
-
-            String line = _mainGeometryGraph.directory;
-            line = line.Replace(".tiles", "");
+            if (tileDirectory == null) return false;
+            string line = tileDirectory.Replace(".tiles", "");
 
 
             try
@@ -1233,7 +1233,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                Console.WriteLine("No prespecified location found.");
+                Console.WriteLine("exiting LoadNodeLocationsFromFile");
                 return false;
             }
 
@@ -1258,7 +1258,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
 #endif
         }
 
-        private int CreateNodePositions(Tiling g, Dictionary<Node, int> nodeToId, Dictionary<int, Node> idToNode, out int maxY)
+        private int CreateNodePositions(Tiling g, Dictionary<Node, int> nodeToId, Dictionary<int, Node> idToNode, out int maxY, string tileDirectory)
         {
             //PointSet ps = new PointSet(_mainGeometryGraph.Nodes.Count);
             //find maxX and maxY
@@ -1368,7 +1368,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             //LevelCalculator.RankGraph(_lgData, _mainGeometryGraph);
             LevelCalculator.SetNodeZoomLevelsAndRouteEdgesOnLevels(_lgData, _mainGeometryGraph, _lgLayoutSettings);
             
-            bool bipartite = loadBipartiteData();
+            bool bipartite = loadBipartiteData(tileDirectory);
 
 
             if (bipartite)
@@ -1507,7 +1507,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 }
             }
 
-             
+
 
             SymmetricSegment s;
             List<SymmetricSegment> newSegments = new List<SymmetricSegment>();
@@ -1531,32 +1531,30 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                 _lgLayoutSettings.MaxNumberOfNodesPerTile,
                 _lgLayoutSettings.MaxNumberOfRailsPerTile))
                 allInserted = false;
-            
+
 
             if (!allInserted && level.ZoomLevel - 1 >= 0)
             {
 
                 //foreach (Edge edge in level._railsOfEdges.Keys)
-                ///{
-                    level._railsOfEdges.Clear();
-                    level._railDictionary.Clear();
-                    level.RailTree.Clear();
-               // }
+                level._railsOfEdges.Clear();
+                level._railDictionary.Clear();
+                level.RailTree.Clear();
                 foreach (SymmetricSegment sg in newSegments)
                     Segs.Remove(sg);
                 foreach (Edge edge in _lgData.Levels[level.ZoomLevel - 1]._railsOfEdges.Keys)
                 {
                     railsOfEdge = _lgData.Levels[level.ZoomLevel - 1]._railsOfEdges[edge];
-                     
+
                     Set<Rail> rails = new Set<Rail>();
                     Set<Rail> oldRails = new Set<Rail>();
 
                     foreach (var r in railsOfEdge)
                     {
-                         
+
                         LineSegment ls = new LineSegment(r.A, r.B);
                         var tuple = new SymmetricSegment(r.A, r.B);
- 
+
                         Rail rail;
                         if (!level._railDictionary.TryGetValue(tuple, out rail))
                         {
@@ -1570,7 +1568,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                             rail.initialB = r.initialB;
                             rail.targetA = r.targetA;
                             rail.targetB = r.targetB;
- 
+
                             if (!RailToEdges.ContainsKey(rail)) RailToEdges[rail] = new List<Edge>();
                             if (!RailToEdges[rail].Contains(edge)) RailToEdges[rail].Add(edge);
 
@@ -1580,18 +1578,18 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
 
                         }
                         else
-                        {                             
-                            if (!RailToEdges[rail].Contains(edge)) RailToEdges[rail].Add(edge);                            
+                        {
+                            if (!RailToEdges[rail].Contains(edge)) RailToEdges[rail].Add(edge);
                         }
-                         
+
                     }
-                    level._railsOfEdges[edge] = rails; 
+                    level._railsOfEdges[edge] = rails;
                 }
-                 
+
                 return false;
             }
 
-            return true; 
+            return true;
         }
 
         public bool MsaglNodeSuccessfullyPlotted(Tiling g, LgLevel level, int currentGraphLayer, int nodeToBePlotted, IEnumerable<Node> nodes, Dictionary<Node, int> nodeId)
@@ -1864,13 +1862,13 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
         /// <summary>
         ///     does the initialization
         /// </summary>
-        public void Run()
+        public void Run(string tileDirectory)
         {
             //Dictionary<Node, int> nodeToIndex;
 
 
             Console.WriteLine("dot graph");
-            RunForMsaglFiles();
+            RunForMsaglFiles(tileDirectory);
             //RunForDotFiles();
 
 
@@ -1879,9 +1877,8 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
 
             _lgData.CreateLevelNodeTrees(NodeDotWidth(1));
             _railGraph = new RailGraph();
-            return;
-
-
+    
+#if TEST_GRAPHMAPS
 #if DEBUG && TEST_MSAGL
             _mainGeometryGraph.SetDebugIds();
 #endif
@@ -1890,7 +1887,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             FillGeometryNodeToLgInfosTables();
             LevelCalculator.RankGraph(_lgData, _mainGeometryGraph);
             LayoutTheWholeGraph();
-#if !SILVERLIGHT && !SHARPKIT
+#if !SILVERLIGHT && !SHARPKIT && !NETCORE
             var timer = new Timer();
             timer.Start();
 #endif
@@ -1900,11 +1897,12 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             _railGraph = new RailGraph();
             LayoutAndRouteByLayers(_lgLayoutSettings.MaxNumberOfNodesPerTile, _lgLayoutSettings.MaxNumberOfRailsPerTile,
                 _lgLayoutSettings.IncreaseNodeQuota);
-#if !SILVERLIGHT && !SHARPKIT
+#if !SILVERLIGHT && !SHARPKIT && !NETCORE
             timer.Stop();
             Console.WriteLine("levels calculated for {0}", timer.Duration);
             if (_lgLayoutSettings.ExitAfterInit)
                 Environment.Exit(0);
+#endif
 #endif
         }
 
@@ -3072,7 +3070,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
         static void ShowNodesAndSegmentsForOverlapRemoval(IEnumerable<LgNodeInfo> fixedNodes,
             IEnumerable<LgNodeInfo> moveableNodes, SymmetricSegment[] fixedSegments)
         {
-#if DEBUG && !SILVERLIGHT && !SHARPKIT
+#if DEBUG && !SILVERLIGHT && !SHARPKIT && !NETCORE
             var l = new List<DebugCurve>();
             if (fixedNodes != null && fixedNodes.Any())
             {
@@ -3219,7 +3217,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
         }
 
 
-#if DEBUG && !SILVERLIGHT && !SHARPKIT
+#if DEBUG && !SILVERLIGHT && !SHARPKIT && !NETCORE
         static void ShowOldNewIntersected(Set<Rail> oldIntersected, Set<Rail> newIntersected, Point a, Point shortcutted,
             Point b, LgSkeletonLevel skeletonLevel)
         {
@@ -3246,7 +3244,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
         }
 #endif
 
-#if DEBUG && !SILVERLIGHT && !SHARPKIT
+#if DEBUG && !SILVERLIGHT && !SHARPKIT && !NETCORE
         private static void ShowOldTrajectories(LgSkeletonLevel skeletonLevel)
         {
             if (skeletonLevel.ZoomLevel <= 1.0) return;
@@ -3820,7 +3818,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
                     return true;
                 }
         */
-
+#if !NETCORE
         public void SelectAllColoredEdgesIncidentTo(LgNodeInfo nodeInfo, SolidColorBrush c)
         {
             List<Edge> edges = nodeInfo.GeometryNode.Edges.ToList();
@@ -3922,7 +3920,7 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             }
                 
         }
- 
+
         public void UpdateVisibleEdgesIncidentTo(LgNodeInfo nodeInfo, int currentLayer)
         {
             List<Edge> edges = nodeInfo.GeometryNode.Edges.ToList();
@@ -4015,6 +4013,8 @@ namespace Microsoft.Msagl.Layout.LargeGraphLayout
             Edge edge = edges.OrderByDescending(e => _lgData.GeometryEdgesToLgEdgeInfos[e].Rank).First();
             SelectEdge(_lgData.GeometryEdgesToLgEdgeInfos[edge]);
         }
+
+#endif
 
         Rectangle GetLabelRectForScale(LgNodeInfo nodeInfo, double scale)
         {
@@ -4293,6 +4293,8 @@ return new Rectangle(nodeInfo.Center + offset - d, nodeInfo.Center + offset + d)
             return null;
         }
 
+#if !NETCORE
+
         public void AnalyzeClick(Point mouseDownPositionInGraph, int downCount)
         {
             var closest = FindClosestNodeInfoForMouseClickBelowCurrentLevel(mouseDownPositionInGraph);
@@ -4319,6 +4321,7 @@ return new Rectangle(nodeInfo.Center + offset - d, nodeInfo.Center + offset + d)
             RunOnViewChange();
             return closest.GeometryNode;
         }
+#endif
 
 
         public bool NumberOfNodesOfLastLayerIntersectedRectIsLessThanBound(int iLevel, Rectangle rect, int bound)

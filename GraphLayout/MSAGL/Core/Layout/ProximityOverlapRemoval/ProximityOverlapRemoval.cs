@@ -314,9 +314,6 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
 #endif
             // init some things
             InitNodePositionsAndBoxes(Settings, _nodes, out nodePositions, out nodeSizes);
-
-            if (!(Settings.InitialScaling == InitialScaling.None))
-                DoInitialScaling();
             InitStressWithGraph(StressSolver, _nodes, nodePositions);
 #if DEBUG
             //debugging the node movements
@@ -505,7 +502,7 @@ namespace Microsoft.Msagl.Core.Layout.ProximityOverlapRemoval {
                                                        Point[] nodePositions, List<Point> newPositions,
                                                        List<Tuple<int, int, double, double>> proximityEdgesWithDistance,
                                                        Point[] finalGridVectors) {
-#if DEBUG && ! SILVERLIGHT && !SHARPKIT
+#if DEBUG && ! SILVERLIGHT && !SHARPKIT && !NETCORE
             if (DebugMode && currentIteration%1 == 0) {
                 List<DebugCurve> curveList = new List<DebugCurve>();
                 var nodeBoxes = new Rectangle[nodeSizes.Length];
